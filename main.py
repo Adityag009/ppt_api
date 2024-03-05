@@ -2,7 +2,7 @@ import pathlib
 import tempfile
 from fastapi import FastAPI, File, UploadFile
 from code import convert_ppt_to_images_and_analyze
-
+from pathlib import Path
 app = FastAPI()
 
 TEMP_DIR = pathlib.Path(tempfile.mkdtemp())
@@ -15,14 +15,10 @@ async def analyze_ppt(file: UploadFile = File(...)):
         temp_ppt.write(await file.read())
 
     try:
-        ppt_images = convert_ppt_to_images_and_analyze(temp_ppt_path)
+        output_folder = Path.home() / "aditya/ppt/ppt_api/data"
+        ppt_images = convert_ppt_to_images_and_analyze(temp_ppt_path, output_folder)
         response_data = {"status": "success", "message": "Analysis completed successfully", "results": ppt_images}
     except Exception as e:
         response_data = {"status": "error", "message": f"An error occurred: {str(e)}"}
-    finally:
-        temp_ppt_path.unlink()  # Delete the temporary PPT file
-        if 'ppt_images' in locals():
-            for img_path in ppt_images:
-                img_path.unlink()  # Delete each temporary image file
 
     return response_data

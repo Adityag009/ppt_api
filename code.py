@@ -1,10 +1,26 @@
-import subprocess
 import pathlib
+import subprocess
 import tempfile
 from PIL import Image
+import getpass
+import json
+import os
 import google.generativeai as genai
+from dotenv import load_dotenv
+
+load_dotenv()
+os.getenv("GOOGLE_API_KEY")
+
+
+
+if "GOOGLE_API_KEY" not in os.environ:
+    # Prompt for the API key securely
+    os.environ["GOOGLE_API_KEY"] = getpass.getpass("Enter Google API Key: ")
+
 
 model = genai.GenerativeModel('gemini-pro-vision')
+
+
 def convert_ppt_to_images_and_analyze(pptx_file, output_path):
     if not str(output_path).endswith("Images"):
         img_path = output_path / "Images"
@@ -12,14 +28,13 @@ def convert_ppt_to_images_and_analyze(pptx_file, output_path):
         img_path = output_path
     img_path.mkdir(parents=True, exist_ok=True)
 
-    slide_analysis_results = []
+    slide_analysis_results = {}
 
     with tempfile.TemporaryDirectory() as temp_pdf_folder:
         subprocess.run(["soffice", "--headless", "--convert-to", "pdf", "--outdir", temp_pdf_folder, pptx_file], check=True)
         pdf_files = list(pathlib.Path(temp_pdf_folder).glob("*.pdf"))
 
         if not pdf_files:
-            print("No PDF files were created from the PPTX.")
             return slide_analysis_results
 
         for pdf_file in pdf_files:
@@ -30,12 +45,11 @@ def convert_ppt_to_images_and_analyze(pptx_file, output_path):
             subprocess.run(["gs", "-sDEVICE=pngalpha", "-o", f"{pdf_to_png_output_path}/{base_name}_slide_%02d.png", "-r144", pdf_file], check=True)
             generated_images = list(pdf_to_png_output_path.glob(f"{base_name}_slide_*.png"))
 
-        for img_path in generated_images:
-            with Image.open(img_path) as img:
-                # Extract slide name from the image path (filename without extension)
-                slide_name = img_path.stem
-                slide_analysis = analyze_slide_image(img, slide_name)  # Pass slide name here
-                slide_analysis_results.append(slide_analysis)
+            for img_path in generated_images:
+                with Image.open(img_path) as img:
+                    slide_name = img_path.stem
+                    slide_analysis = analyze_slide_image(img, slide_name)
+                    slide_analysis_results[slide_name] = slide_analysis
 
     return slide_analysis_results
 
